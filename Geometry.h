@@ -52,6 +52,16 @@ public:
         return static_cast<int>(m_positions.size());
     }
 
+    //metodo per settare la matrice di modellazione della singola geometria
+    void setModelMatrix(const glm::mat4& m) {
+		m_modelMatrix = m;
+    }
+
+    //getter per la model matrix
+    glm::mat4 getModelMatrix() const {
+		return m_modelMatrix;
+    }
+
 // PRIVATE: dati e risorse posseduti da questa singola Geometry.
 // Ogni istanza mantiene i propri vector CPU e i propri identificatori GPU.
 private:
@@ -71,4 +81,7 @@ private:
     GLenum m_primitiveType = GL_TRIANGLES;
     // Indica se upload() ha gia' creato le risorse GPU.
     bool m_uploaded = false;
+
+    //matrice propria della singola geometria
+    glm::mat4 m_modelMatrix = glm::mat4(1.0f);
 };

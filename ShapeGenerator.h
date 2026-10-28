@@ -29,16 +29,12 @@ public:
     static MeshData createHeart(
         const int precision,
         const float scaleX,
-        const float scaleY,
-        const float shiftX,
-        const float shiftY
+        const float scaleY
     );
 
     static MeshData createButterfly(
         const int precision,
         const float scaleX,
-        const float scaleY,
-        const float shiftX,
-        const float shiftY
+        const float scaleY
     );
 };

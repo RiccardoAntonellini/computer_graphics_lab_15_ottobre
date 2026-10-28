@@ -44,6 +44,16 @@ public:
     // Svuota la scena: i distruttori delle Geometry liberano VAO e VBO.
     void clear();
 
+    //getter per singola geometria in base all'indice nel main
+    Geometry& getGeometry(std::size_t index) {
+        return m_objects[index];
+    }
+
+    //getter per singola geometria in base all'indice nel renderer
+    const Geometry& getGeometry(std::size_t index) const {
+        return m_objects[index];
+    }
+
 // PRIVATE: contenitore effettivo degli oggetti della scena.
 private:
     // Ogni elemento rappresenta una geometria distinta.

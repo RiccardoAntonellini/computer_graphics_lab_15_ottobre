@@ -1,4 +1,4 @@
-// ============================================================================
+    // ============================================================================
 // Renderer.cpp - GUIDA DIDATTICA
 // Rendering: attraversa la scena e delega a ciascuna Geometry la propria draw call.
 // ============================================================================
@@ -33,6 +33,16 @@ void Renderer::setWireframe(bool enabled) const
 // Delega il disegno alla singola Geometry: il Renderer non conosce il VAO dell oggetto.
 void Renderer::draw(const Geometry& geometry) const
 {
+
+    /* modifico la draw per fare in modo che venga recuperato lo shader program attuale 
+       e poter inviare la model matrix della geometria alla GPU */
+
+    GLint currentProgram;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+
+    GLint loc = glGetUniformLocation(currentProgram, "u_Model");
+	glUniformMatrix4fv(loc, 1, GL_FALSE, &geometry.getModelMatrix()[0][0]);
+
     geometry.draw();
 }
 

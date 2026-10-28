@@ -15,6 +15,11 @@
 #include "Gui.h"
 #include "Input.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/constants.hpp>
+#include <cmath>                
+
 struct GridObject {
     int sceneIndex;
     int row;
@@ -24,7 +29,9 @@ struct GridObject {
 
 std::vector<GridObject> activeObjects;
 
-void buildGrid(const int rows, const int cols, const Scene& scene);
+void buildGrid(const int rows, const int cols, Scene& scene);
+
+void updateAnimation(float time, Scene& scene);
 
 // Avvio del programma. Le risorse OpenGL vanno create solo dopo che esiste un contesto corrente.
 int main()
@@ -50,8 +57,8 @@ int main()
     // ========================================================================
 
     GLFWwindow* window = glfwCreateWindow(
-        800,
-        800,
+        1280,
+        720,
         "OpenGL - Template classi",
         nullptr,
         nullptr
@@ -79,7 +86,7 @@ int main()
         return -1;
     }
 
-    glViewport(0, 0, 800, 800);
+    glViewport(0, 0, 1280, 720);
 
 
     // ========================================================================
@@ -131,24 +138,45 @@ int main()
     // 8. RENDER LOOP
     // ========================================================================
 
+    int currentRows = -1;
+    int currentCols = -1;
+
     // Ciclo dei frame: aggiorna i controlli, pulisce lo schermo, disegna la scena e presenta il risultato.
     while (!glfwWindowShouldClose(window))
     {
         /* Inizia il frame dell interfaccia prima di costruire i widget. */
-    gui.beginFrame();
+        gui.beginFrame();
         gui.draw();
+
+        if (gui.getRows() != currentRows || gui.getCols() != currentCols) {
+            currentRows = gui.getRows();
+            currentCols = gui.getCols();
+
+            // Ricostruisce i buffer GPU e le matrici solo quando i parametri variano
+            buildGrid(currentRows, currentCols, scene);
+        }
 
         renderer.beginFrame(gui.clearColor());
         renderer.setWireframe(gui.wireframe());
 
         shader.use();
+
+        glm::mat4 projection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -1.0f, 1.0f);
+
+        GLint currentProgram;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+        GLint projLoc = glGetUniformLocation(currentProgram, "u_Projection");
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, &projection[0][0]);
+
+        updateAnimation(glfwGetTime(), scene);
+
         /* Il Renderer visita tutte le Geometry e ne richiama draw(). */
-    renderer.drawScene(scene);
+        renderer.drawScene(scene);
 
         // ImGui va disegnata in modalita' fill.
         renderer.setWireframe(false);
         /* Disegna la GUI sopra la scena OpenGL. */
-    gui.render();
+        gui.render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -195,25 +223,51 @@ void buildGrid(const int rows, const int cols, Scene& scene) {
             MeshData data;
 
             if (i % 2 == 0) {
-                data = ShapeGenerator::createButterfly(14,
-                    0.0625,
-                    0.0625,
-                    0.1,
-                    -0.3
-                );
+                data = ShapeGenerator::createButterfly(14, 0.125, 0.125);
             }
             else {
-				data = ShapeGenerator::createHeart(14,
-                    0.0125,
-                    0.0125,
-                    -0.4,
-                    -0.4
-                );
+				data = ShapeGenerator::createHeart(14, 0.0325, 0.0325);
             }
 
             std::size_t sceneIndex = scene.add(data, false);
 
+            activeObjects.push_back({ (int)sceneIndex, i, cx, cy, scaleX, scaleY });
+
+            //calcolo della model matrix statica
+            glm::mat4 M = glm::mat4(1.0f);
+            M = glm::translate(M, glm::vec3(cx, cy, 0.0f));
+            M = glm::scale(M, glm::vec3(scaleX, scaleY, 1.0f));
+
+			scene.getGeometry(sceneIndex).setModelMatrix(M);
         }
     }
 }
 
+void updateAnimation(float time, Scene& scene) {
+    float A = 12.0f; //ampiezza oscillazione
+    float f0 = 0.5f; // frequenza
+    float deltaF = 0.15f; // incremento frequenza per riga
+    float deltaPhi = 0.8f;// sfasamento righe
+    float v = 25.0f; // velocità discesa costante
+
+    for (const auto& obj : activeObjects) {
+
+        float fr = f0 + obj.row * deltaF;
+        float phi_r = obj.row * deltaPhi;
+
+        // oscillazione sinusoidale orizzontale
+        float xt = obj.x0 + A * sin(2.0f * glm::pi<float>() * fr * time + phi_r);
+
+        // discesa lineare verticale
+        float currentY = obj.y0 - v * time;
+
+        // regola di riciclo --> FMODF avvolge la coordinata Y nel range 100, -100
+        float yt = 100.0f - fmodf(100.0f - currentY, 200.0f);
+
+        glm::mat4 M = glm::mat4(1.0f);
+        M = glm::translate(M, glm::vec3(xt, yt, 0.0f));
+        M = glm::scale(M, glm::vec3(obj.sx, obj.sy, 1.0f));
+
+        scene.getGeometry(obj.sceneIndex).setModelMatrix(M);
+    }
+}
